@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gorilla Tag 3D - Monke</title>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -80,7 +81,7 @@
     });
 
     // Use back camera
-    const camera = new Camera(videoElement, {
+    const cameraObj = new Camera(videoElement, {
       onFrame: async () => {
         await hands.send({ image: videoElement });
       },
@@ -89,9 +90,18 @@
       height: 480
     });
 
-    camera.start();
+    cameraObj.start().then(() => {
+      init(); // Initialize scene after camera starts successfully
+    }).catch(err => {
+      console.error("Error accessing the camera: ", err); // Handle errors if camera access fails
+    });
 
-    init();
+    // Mobile-specific screen resizing
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    });
   </script>
 </body>
 </html>
