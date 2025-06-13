@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gorilla Tag 3D - Monke with Hand Model</title>
+  <title>Gorilla Tag 3D - Hand Model</title>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; }
-    canvas { display: block; width: 100vw; height: 100vh; }
+    canvas { display: block; }
     video { display: none; } /* Hide the video element */
   </style>
 </head>
@@ -30,26 +30,11 @@
 
       // Create a simple 3D hand model (simplified)
       const handGeometry = new THREE.BoxGeometry(1, 0.5, 0.3); // Palm
-      const fingerGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2); // Fingers
       const handMaterial = new THREE.MeshBasicMaterial({ color: 0xffd700 });
 
       // Palm
-      handModel = new THREE.Group();
-      const palm = new THREE.Mesh(handGeometry, handMaterial);
-      palm.position.set(0, 0, 0);
-      handModel.add(palm);
-
-      // Add simple fingers (index and thumb for example)
-      const indexFinger = new THREE.Mesh(fingerGeometry, handMaterial);
-      indexFinger.position.set(0.5, 1, 0);
-      indexFinger.rotation.x = Math.PI / 4;  // Point the finger upwards
-      handModel.add(indexFinger);
-
-      const thumbFinger = new THREE.Mesh(fingerGeometry, handMaterial);
-      thumbFinger.position.set(-0.5, 1, 0);
-      thumbFinger.rotation.x = -Math.PI / 4; // Thumb pointing outward
-      handModel.add(thumbFinger);
-
+      handModel = new THREE.Mesh(handGeometry, handMaterial);
+      handModel.position.set(0, 0, -5);
       scene.add(handModel);
 
       // Set camera position
@@ -62,23 +47,23 @@
       requestAnimationFrame(animate);
       renderer.render(scene, camera);
 
-      // Update hand position
-      handModel.position.set(handX, handY, handZ); // Move the hand
-      handModel.rotation.set(rotationX, rotationY, 0); // Rotate based on gyroscope
+      // Update hand position based on hand tracking
+      handModel.position.set(handX, handY, handZ);
 
-      // Apply the pointing direction (index finger pointing)
-      updateHandPointing();
+      // Update rotation based on gyroscope
+      handModel.rotation.set(rotationX, rotationY, 0);
     }
 
-    // Update hand pointing direction based on hand landmarks
-    function updateHandPointing() {
-      if (handX !== 0 && handY !== 0 && handZ !== 0) {
-        const indexLandmark = handModel.children[1]; // Index finger
+    // Handle device orientation (gyroscope) for looking around
+    window.addEventListener('deviceorientation', (event) => {
+      const alpha = event.alpha ? event.alpha * Math.PI / 180 : 0;
+      const beta = event.beta ? event.beta * Math.PI / 180 : 0;
+      const gamma = event.gamma ? event.gamma * Math.PI / 180 : 0;
 
-        // Point towards the camera (example for simplicity)
-        indexLandmark.lookAt(camera.position);  // This will make the index finger point towards the camera
-      }
-    }
+      // Adjust rotation variables (use alpha and beta for a smoother look)
+      rotationX = beta; // Rotation around X-axis (forward/backward tilt)
+      rotationY = alpha; // Rotation around Y-axis (left/right tilt)
+    });
 
     const videoElement = document.getElementById('input_video');
 
@@ -97,10 +82,10 @@
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         const landmark = results.multiHandLandmarks[0][9]; // Palm center
 
-        // Invert Y-axis: Fix the movement direction
-        handX = (landmark.x - 0.5) * 20;  // Scale to the 3D world
-        handY = ((0.5 - landmark.y) * 20); // Inverted Y-axis for proper movement
-        handZ = (landmark.z - 0.5) * 20;  // Depth scaling
+        // Scale the hand movement
+        handX = (landmark.x - 0.5) * 10;
+        handY = (0.5 - landmark.y) * 10; // Invert the Y-axis for correct orientation
+        handZ = (landmark.z - 0.5) * 10;
       }
     });
 
@@ -109,7 +94,7 @@
       onFrame: async () => {
         await hands.send({ image: videoElement });
       },
-      facingMode: 'environment',  // This ensures we use the back camera
+      facingMode: 'environment',
       width: 640,
       height: 480
     });
@@ -120,18 +105,7 @@
       console.error("Error accessing the camera: ", err); // Handle errors if camera access fails
     });
 
-    // Handle device orientation (gyroscope) for looking around
-    window.addEventListener('deviceorientation', (event) => {
-      const alpha = event.alpha ? event.alpha * Math.PI / 180 : 0;  // Rotation around Z axis
-      const beta = event.beta ? event.beta * Math.PI / 180 : 0;    // Rotation around X axis
-      const gamma = event.gamma ? event.gamma * Math.PI / 180 : 0;  // Rotation around Y axis
-
-      // Adjust rotation variables (use only alpha and beta for a simpler, smoother look)
-      rotationX = beta; // Rotation around X-axis (forward/backward tilt)
-      rotationY = alpha; // Rotation around Y-axis (left/right tilt)
-    });
-
-    // Mobile-specific screen resizing
+    // Resize handling for mobile
     window.addEventListener('resize', () => {
       renderer.setSize(window.innerWidth, window.innerHeight);
       camera.aspect = window.innerWidth / window.innerHeight;
