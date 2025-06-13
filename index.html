@@ -10,13 +10,14 @@
   <style>
     body { margin: 0; overflow: hidden; }
     canvas { display: block; width: 100vw; height: 100vh; }
+    video { display: none; } /* Hide the video element */
   </style>
 </head>
 <body>
   <video id="input_video" style="display:none;"></video>
 
   <script>
-    let scene, camera, renderer, handModel, stump, handX = 0, handY = 0, handZ = 0;
+    let scene, camera, renderer, handModel, handX = 0, handY = 0, handZ = 0;
     let rotationX = 0, rotationY = 0;
 
     // Initialize Three.js Scene
@@ -26,20 +27,6 @@
       renderer = new THREE.WebGLRenderer();
       renderer.setSize(window.innerWidth, window.innerHeight);
       document.body.appendChild(renderer.domElement);
-
-      // Add a basic floor
-      const floorGeometry = new THREE.PlaneGeometry(100, 100);
-      const floorMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide });
-      const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-      floor.rotation.x = Math.PI / 2;
-      scene.add(floor);
-
-      // Add stump (representing an obstacle or base)
-      const stumpGeometry = new THREE.CylinderGeometry(3, 5, 10, 32);
-      const stumpMaterial = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
-      stump = new THREE.Mesh(stumpGeometry, stumpMaterial);
-      stump.position.set(0, 5, 0);  // Position the stump in the world
-      scene.add(stump);
 
       // Create a simple 3D hand model (simplified)
       const handGeometry = new THREE.BoxGeometry(1, 0.5, 0.3); // Palm
