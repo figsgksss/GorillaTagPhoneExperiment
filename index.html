@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gorilla Tag 3D - Monke with Gyroscope</title>
+  <title>Gorilla Tag 3D - Monke with Hand Model</title>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -16,11 +16,11 @@
   <video id="input_video" style="display:none;"></video>
 
   <script>
-    let scene, camera, renderer, monke, stump, handX = 0, handY = 0, handZ = 0;
+    let scene, camera, renderer, handModel, stump, handX = 0, handY = 0, handZ = 0;
     let rotationX = 0, rotationY = 0;
 
+    // Initialize Three.js Scene
     function init() {
-      // Scene setup
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
       renderer = new THREE.WebGLRenderer();
@@ -41,13 +41,31 @@
       stump.position.set(0, 5, 0);  // Position the stump in the world
       scene.add(stump);
 
-      // Add a basic monkey (just a simple sphere for now as placeholder)
-      const geometry = new THREE.SphereGeometry(1, 32, 32);
-      const material = new THREE.MeshBasicMaterial({ color: 0x8B4513 }); // Monke color
-      monke = new THREE.Mesh(geometry, material);
-      scene.add(monke);
+      // Create a simple 3D hand model (simplified)
+      const handGeometry = new THREE.BoxGeometry(1, 0.5, 0.3); // Palm
+      const fingerGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2); // Fingers
+      const handMaterial = new THREE.MeshBasicMaterial({ color: 0xffd700 });
 
-      // Set the camera position
+      // Palm
+      handModel = new THREE.Group();
+      const palm = new THREE.Mesh(handGeometry, handMaterial);
+      palm.position.set(0, 0, 0);
+      handModel.add(palm);
+
+      // Add simple fingers (index and thumb for example)
+      const indexFinger = new THREE.Mesh(fingerGeometry, handMaterial);
+      indexFinger.position.set(0.5, 1, 0);
+      indexFinger.rotation.x = Math.PI / 4;  // Point the finger upwards
+      handModel.add(indexFinger);
+
+      const thumbFinger = new THREE.Mesh(fingerGeometry, handMaterial);
+      thumbFinger.position.set(-0.5, 1, 0);
+      thumbFinger.rotation.x = -Math.PI / 4; // Thumb pointing outward
+      handModel.add(thumbFinger);
+
+      scene.add(handModel);
+
+      // Set camera position
       camera.position.z = 10;
 
       animate();
@@ -56,10 +74,23 @@
     function animate() {
       requestAnimationFrame(animate);
       renderer.render(scene, camera);
-      monke.position.set(handX, handY, handZ); // Move monkey with hand position
 
-      // Apply gyroscope rotation
-      camera.rotation.set(rotationX, rotationY, 0);
+      // Update hand position
+      handModel.position.set(handX, handY, handZ); // Move the hand
+      handModel.rotation.set(rotationX, rotationY, 0); // Rotate based on gyroscope
+
+      // Apply the pointing direction (index finger pointing)
+      updateHandPointing();
+    }
+
+    // Update hand pointing direction based on hand landmarks
+    function updateHandPointing() {
+      if (handX !== 0 && handY !== 0 && handZ !== 0) {
+        const indexLandmark = handModel.children[1]; // Index finger
+
+        // Point towards the camera (example for simplicity)
+        indexLandmark.lookAt(camera.position);  // This will make the index finger point towards the camera
+      }
     }
 
     const videoElement = document.getElementById('input_video');
@@ -83,9 +114,6 @@
         handX = (landmark.x - 0.5) * 20;  // Scale to the 3D world
         handY = ((0.5 - landmark.y) * 20); // Inverted Y-axis for proper movement
         handZ = (landmark.z - 0.5) * 20;  // Depth scaling
-
-        // Optional logging to check the coordinates
-        console.log("Hand Position:", handX, handY, handZ);
       }
     });
 
@@ -107,7 +135,6 @@
 
     // Handle device orientation (gyroscope) for looking around
     window.addEventListener('deviceorientation', (event) => {
-      // Adjust the sensitivity of rotation (feel free to tweak)
       const alpha = event.alpha ? event.alpha * Math.PI / 180 : 0;  // Rotation around Z axis
       const beta = event.beta ? event.beta * Math.PI / 180 : 0;    // Rotation around X axis
       const gamma = event.gamma ? event.gamma * Math.PI / 180 : 0;  // Rotation around Y axis
