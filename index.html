@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gorilla Tag 3D - Monke</title>
+  <title>Gorilla Tag 3D - Monke with Gyroscope</title>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -17,6 +17,7 @@
 
   <script>
     let scene, camera, renderer, monke, stump, handX = 0, handY = 0, handZ = 0;
+    let rotationX = 0, rotationY = 0;
 
     function init() {
       // Scene setup
@@ -56,6 +57,9 @@
       requestAnimationFrame(animate);
       renderer.render(scene, camera);
       monke.position.set(handX, handY, handZ); // Move monkey with hand position
+
+      // Apply gyroscope rotation
+      camera.rotation.set(rotationX, rotationY, 0);
     }
 
     const videoElement = document.getElementById('input_video');
@@ -74,9 +78,14 @@
     hands.onResults(results => {
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         const landmark = results.multiHandLandmarks[0][9]; // Palm center
+
+        // Invert Y-axis: Fix the movement direction
         handX = (landmark.x - 0.5) * 20;  // Scale to the 3D world
-        handY = (landmark.y - 0.5) * 20;
-        handZ = (landmark.z - 0.5) * 20;
+        handY = ((0.5 - landmark.y) * 20); // Inverted Y-axis for proper movement
+        handZ = (landmark.z - 0.5) * 20;  // Depth scaling
+
+        // Optional logging to check the coordinates
+        console.log("Hand Position:", handX, handY, handZ);
       }
     });
 
@@ -94,6 +103,18 @@
       init(); // Initialize scene after camera starts successfully
     }).catch(err => {
       console.error("Error accessing the camera: ", err); // Handle errors if camera access fails
+    });
+
+    // Handle device orientation (gyroscope) for looking around
+    window.addEventListener('deviceorientation', (event) => {
+      // Adjust the sensitivity of rotation (feel free to tweak)
+      const alpha = event.alpha ? event.alpha * Math.PI / 180 : 0;  // Rotation around Z axis
+      const beta = event.beta ? event.beta * Math.PI / 180 : 0;    // Rotation around X axis
+      const gamma = event.gamma ? event.gamma * Math.PI / 180 : 0;  // Rotation around Y axis
+
+      // Adjust rotation variables (use only alpha and beta for a simpler, smoother look)
+      rotationX = beta; // Rotation around X-axis (forward/backward tilt)
+      rotationY = alpha; // Rotation around Y-axis (left/right tilt)
     });
 
     // Mobile-specific screen resizing
