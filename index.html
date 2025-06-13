@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gorilla Tag 3D - Hand Model</title>
+  <title>Gorilla Tag 3D - Hand Tracking</title>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -17,8 +17,9 @@
   <video id="input_video" style="display:none;"></video>
 
   <script>
-    let scene, camera, renderer, handModel, handX = 0, handY = 0, handZ = 0;
+    let scene, camera, renderer, handModel;
     let rotationX = 0, rotationY = 0;
+    let handX = 0, handY = 0, handZ = 0;
 
     // Initialize Three.js Scene
     function init() {
@@ -28,13 +29,28 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
       document.body.appendChild(renderer.domElement);
 
-      // Create a simple 3D hand model (simplified)
-      const handGeometry = new THREE.BoxGeometry(1, 0.5, 0.3); // Palm
+      // Create a simple 3D hand model (Palm and finger)
+      const palmGeometry = new THREE.BoxGeometry(1, 0.5, 0.3); // Palm geometry
+      const fingerGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.5); // Finger geometry
       const handMaterial = new THREE.MeshBasicMaterial({ color: 0xffd700 });
 
-      // Palm
-      handModel = new THREE.Mesh(handGeometry, handMaterial);
-      handModel.position.set(0, 0, -5);
+      // Palm (center of the hand)
+      handModel = new THREE.Group();
+      const palm = new THREE.Mesh(palmGeometry, handMaterial);
+      palm.position.set(0, 0, 0);
+      handModel.add(palm);
+
+      // Fingers (index and thumb for example)
+      const indexFinger = new THREE.Mesh(fingerGeometry, handMaterial);
+      indexFinger.position.set(0.5, 1, 0);
+      indexFinger.rotation.x = Math.PI / 4;  // Point the finger upwards
+      handModel.add(indexFinger);
+
+      const thumbFinger = new THREE.Mesh(fingerGeometry, handMaterial);
+      thumbFinger.position.set(-0.5, 1, 0);
+      thumbFinger.rotation.x = -Math.PI / 4; // Thumb pointing outward
+      handModel.add(thumbFinger);
+
       scene.add(handModel);
 
       // Set camera position
@@ -48,21 +64,19 @@
       renderer.render(scene, camera);
 
       // Update hand position based on hand tracking
-      handModel.position.set(handX, handY, handZ);
-
-      // Update rotation based on gyroscope
-      handModel.rotation.set(rotationX, rotationY, 0);
+      handModel.position.set(handX, handY, handZ); // Move the hand model
+      handModel.rotation.set(rotationX, rotationY, 0); // Rotate based on gyroscope
     }
 
     // Handle device orientation (gyroscope) for looking around
     window.addEventListener('deviceorientation', (event) => {
-      const alpha = event.alpha ? event.alpha * Math.PI / 180 : 0;
-      const beta = event.beta ? event.beta * Math.PI / 180 : 0;
-      const gamma = event.gamma ? event.gamma * Math.PI / 180 : 0;
+      const alpha = event.alpha ? event.alpha * Math.PI / 180 : 0;  // Rotation around Z axis
+      const beta = event.beta ? event.beta * Math.PI / 180 : 0;    // Rotation around X axis
+      const gamma = event.gamma ? event.gamma * Math.PI / 180 : 0;  // Rotation around Y axis
 
-      // Adjust rotation variables (use alpha and beta for a smoother look)
-      rotationX = beta; // Rotation around X-axis (forward/backward tilt)
-      rotationY = alpha; // Rotation around Y-axis (left/right tilt)
+      // Adjust rotation variables for smoother camera control
+      rotationX = beta;  // Forward/Backward tilt
+      rotationY = alpha; // Left/Right tilt
     });
 
     const videoElement = document.getElementById('input_video');
@@ -80,32 +94,34 @@
 
     hands.onResults(results => {
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        const landmark = results.multiHandLandmarks[0][9]; // Palm center
+        const landmarks = results.multiHandLandmarks[0];  // Track first hand only
 
-        // Scale the hand movement
-        handX = (landmark.x - 0.5) * 10;
-        handY = (0.5 - landmark.y) * 10; // Invert the Y-axis for correct orientation
-        handZ = (landmark.z - 0.5) * 10;
+        const palmCenter = landmarks[9]; // Palm center landmark
+
+        // Move hand in 3D space based on hand landmarks
+        handX = (palmCenter.x - 0.5) * 10;  // Scale for 3D movement
+        handY = (0.5 - palmCenter.y) * 10; // Invert Y-axis for proper hand movement
+        handZ = (palmCenter.z - 0.5) * 10; // Depth scaling
       }
     });
 
-    // Use back camera
+    // Start the camera with the back camera
     const cameraObj = new Camera(videoElement, {
       onFrame: async () => {
         await hands.send({ image: videoElement });
       },
-      facingMode: 'environment',
+      facingMode: 'environment',  // Use the back camera on mobile
       width: 640,
       height: 480
     });
 
     cameraObj.start().then(() => {
-      init(); // Initialize scene after camera starts successfully
+      init();  // Initialize the scene after the camera starts successfully
     }).catch(err => {
       console.error("Error accessing the camera: ", err); // Handle errors if camera access fails
     });
 
-    // Resize handling for mobile
+    // Handle window resize for mobile responsiveness
     window.addEventListener('resize', () => {
       renderer.setSize(window.innerWidth, window.innerHeight);
       camera.aspect = window.innerWidth / window.innerHeight;
